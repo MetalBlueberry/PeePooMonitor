@@ -1,0 +1,27 @@
+version: "3.5"
+
+services:
+  sensor:
+    command: sleep infinity    
+    environment:
+      # allow proper integration of .bashrc
+     - "HOME=$HOME"
+    build:
+      target: dev
+    volumes:
+      - ./:$HOME/PeePooMonitor
+      # share id to allow git integration
+      - $HOME/.ssh:$HOME/.ssh
+      # share terminal configuration
+      - $HOME/.bashrc:$HOME/.bashrc:ro
+      # allow the persistence of binary tools installed in container
+      - gobin:/go/bin
+    # [Optional] Required for ptrace-based debuggers like C++, Go, and Rust
+    cap_add:
+      - SYS_PTRACE
+    security_opt:
+      - seccomp:unconfined
+
+volumes:
+  gobin:  
+    

@@ -1,0 +1,7 @@
+version: "3.5"
+
+services:
+  sensor:
+    devices:
+      - "/dev/mem" 
+      - "/dev/gpiomem"

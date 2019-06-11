@@ -1,0 +1,5 @@
+bin
+
+# discards secrets but include the readme.
+secrets
+!secrets/README.md

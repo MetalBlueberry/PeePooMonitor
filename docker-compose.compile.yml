@@ -1,0 +1,15 @@
+version: "3.5"
+
+services:
+   compile:
+    build:
+      context: sensor
+      target: builder
+    volumes:
+      - ./bin:/go/bin
+    environment:
+      - GOOS=linux
+      - GOARCH=arm 
+      - GOARM=5
+    command: "go install ./..."
+    

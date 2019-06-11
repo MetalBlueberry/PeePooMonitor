@@ -1,0 +1,16 @@
+// See https://aka.ms/vscode-remote/devcontainer.json for format details.
+{
+	"dockerComposeFile": [
+		"../docker-compose.yml",
+		"docker-compose.dev.yml"
+	],
+	"service": "sensor",
+	"workspaceFolder": "/home/victor/PeePooMonitor",
+	"shutdownAction": "stopCompose",
+	"extensions": [
+		"ms-vscode.go"
+	],
+	"settings": {
+		"go.gopath": "/go"
+	}
+}

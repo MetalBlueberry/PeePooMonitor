@@ -1,0 +1,13 @@
+version: "3.5"
+
+services:
+  sensor:
+    build:
+      context: sensor
+      target: tbd
+    secrets:
+      - telegram_bot_token
+
+secrets:
+  telegram_bot_token:
+    file: ./secrets/telegram_bot_token.txt 
