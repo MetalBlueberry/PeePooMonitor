@@ -3,19 +3,26 @@ version: "3.5"
 services:
   sensor:
     command: sleep infinity    
+    user: "1000"
     environment:
       # allow proper integration of .bashrc
      - "HOME=$HOME"
     build:
       target: dev
     volumes:
+      # Mount dev home
+      - $HOME/devhome:$HOME
+      # Mount Project
       - ./:$HOME/PeePooMonitor
+      # Some global configuration files
       # share id to allow git integration
-      - $HOME/.ssh:$HOME/.ssh
+      - $HOME/.ssh:$HOME/.ssh:ro
       # share terminal configuration
       - $HOME/.bashrc:$HOME/.bashrc:ro
       # Include global git configuration
       - $HOME/.gitconfig:$HOME/.gitconfig:ro
+      # user information
+      - /etc/passwd:/etc/passwd:ro
       # allow the persistence of binary tools installed in container
       - gobin:/go/bin
     # [Optional] Required for ptrace-based debuggers like C++, Go, and Rust
@@ -26,4 +33,4 @@ services:
 
 volumes:
   gobin:  
-    
+  home:  
