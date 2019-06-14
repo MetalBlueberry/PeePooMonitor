@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"strings"
 
 	"github.com/metalblueberry/PeePooMonitor/pkg/rpio"
 	"github.com/metalblueberry/PeePooMonitor/pkg/telegrambot"
@@ -47,14 +48,14 @@ func main() {
 	if err != nil {
 		log.WithError(err).Panic("cannot load telegram bot token from secrets")
 	}
-
+	
 	sensor := rpio.HCSR51{
 		PinNumber:         pinNumber,
 		SamplingInSeconds: 1,
 	}
 
 	notifier := telegrambot.TelegramBot{
-		Token: string(TelegramToken),
+		Token:  strings.Trim(string(TelegramToken), " \n"),
 	}
 
 	err = run(notifier ,sensor)
