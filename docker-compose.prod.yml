@@ -3,5 +3,7 @@ version: "3.5"
 services:
   sensor:
     devices:
-      - "/dev/mem" 
       - "/dev/gpiomem"
+    volumes:
+      - "/sys/devices/platform/soc/:/sys/devices/platform/soc/"
+      - "/sys/class/gpio:/sys/class/gpio"
