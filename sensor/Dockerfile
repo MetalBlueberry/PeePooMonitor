@@ -15,7 +15,6 @@ RUN go install -v ./...
 FROM alpine:3.9 as monitor
 COPY --from=builder /go/bin/monitor /usr/bin/monitor
 RUN apk update && apk upgrade && \
-    apk add --no-cache ca-certificates
-
+    apk add --no-cache ca-certificates wiringpi
 
 CMD ["monitor"]
