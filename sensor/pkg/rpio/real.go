@@ -26,7 +26,7 @@ func (w HCSR51) DetectMotion() <-chan bool {
 			args = fmt.Sprintf("-g wfi %d both", pinNumber)
 			_, err = exec.Command(command, strings.Split(args, " ")...).Output()
 			if err != nil {
-				log.Fatal(err)
+				log.WithError(err).Fatal("Unable to interact with GPIO")
 			}
 			log.Debug("detected edge")
 
