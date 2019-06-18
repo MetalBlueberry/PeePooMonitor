@@ -28,7 +28,7 @@ func init() {
 func main() {
 
 	hostname, _ := os.Hostname()
-	server := flag.String("server", "tcp://rabbitmq:1883", "The full URL of the MQTT server to connect to")
+	server := flag.String("server", "tcp://mosquitto:1883", "The full URL of the MQTT server to connect to")
 	qos := flag.Int("qos", 1, "The QoS to send the messages at")
 	clientid := flag.String("clientid", hostname, "A clientid for the connection")
 	username := flag.String("username", "guest", "A username to authenticate to the MQTT server")
@@ -56,9 +56,6 @@ func main() {
 			client.PublishSensorStatus(status)
 		},
 	}
-
-	client.Connect()
-	client.PublishPowerStatus(true)
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
