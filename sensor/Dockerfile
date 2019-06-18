@@ -12,9 +12,9 @@ COPY . .
 
 RUN go install -v ./...
 
-FROM alpine:3.9 as monitor
-COPY --from=builder /go/bin/monitor /usr/bin/monitor
+FROM alpine:3.9 as sensor
+COPY --from=builder /go/bin/sensor /usr/bin/sensor
 RUN apk update && apk upgrade && \
     apk add --no-cache ca-certificates wiringpi
 
-CMD ["monitor"]
+CMD ["sensor"]
