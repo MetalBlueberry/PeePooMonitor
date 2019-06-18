@@ -62,7 +62,7 @@ func main() {
 	go func() {
 		<-c
 		log.Debug("Disconnect")
-		client.PublishPowerStatus(true)
+		client.PublishPowerStatus(false)
 		client.Disconnect(100)
 		os.Exit(1)
 	}()
