@@ -8,6 +8,17 @@ services:
     secrets:
       - telegram_bot_token
 
+  mosquitto:
+    build: mosquitto
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
+
+volumes:
+  mosquitto-data:
 secrets:
   telegram_bot_token:
     file: ./secrets/telegram_bot_token.txt 
+

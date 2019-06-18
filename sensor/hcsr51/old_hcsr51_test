@@ -1,0 +1,53 @@
+package hcsr51
+
+import (
+	"testing"
+
+	"github.com/golang/mock/gomock"
+	"github.com/metalblueberry/PeePooMonitor/sensor/mocks"
+)
+
+func Test_watchInputChanges(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockCommander := mocks.NewMockCommander(mockCtrl)
+
+	gomock.InOrder(
+		mockCommander.EXPECT().Command("gpio", []string{"-g", "wfi", "17", "both"}).Return([]byte("\n"), nil).Times(1),
+		mockCommander.EXPECT().Command("gpio", []string{"-g", "read", "17"}).Return([]byte("1\n"), nil).Times(1),
+	)
+
+	type args struct {
+		pinNumber int
+		cmd       *mocks.MockCommander
+	}
+	tests := []struct {
+		name    string
+		args    args
+		want    bool
+		wantErr bool
+	}{
+		{
+			name: "Test1",
+			args: args{
+				pinNumber: 17,
+				cmd:       mockCommander,
+			},
+			want:    true,
+			wantErr: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := watchInputChanges(tt.args.pinNumber, tt.args.cmd)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("watchInputChanges() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if got != tt.want {
+				t.Errorf("watchInputChanges() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
