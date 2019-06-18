@@ -7,6 +7,8 @@ services:
       target: sensor
     secrets:
       - telegram_bot_token
+    depends_on:
+      - mosquitto
 
   mosquitto:
     build: mosquitto
