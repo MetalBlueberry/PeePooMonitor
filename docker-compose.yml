@@ -4,7 +4,7 @@ services:
   sensor:
     build:
       context: sensor
-      target: monitor
+      target: sensor
     secrets:
       - telegram_bot_token
 
