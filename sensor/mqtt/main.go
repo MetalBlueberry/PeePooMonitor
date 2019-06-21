@@ -3,7 +3,6 @@ package mqtt
 import (
 	"crypto/tls"
 	"fmt"
-	"strconv"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -18,7 +17,7 @@ type publisher interface {
 }
 type Publisher interface {
 	Disconnect(quiesce uint)
-	PublishSensorStatus(status int)
+	PublishSensorStatus(status string)
 	PublishPowerStatus(status bool)
 }
 
@@ -72,8 +71,8 @@ func (m *MqttClient) Disconnect(quiesce uint) {
 	m.client.Disconnect(100)
 }
 
-func (m *MqttClient) PublishSensorStatus(status int) {
-	m.Publish(strconv.Itoa(status), "/devices/sensor/raw/status", true)
+func (m *MqttClient) PublishSensorStatus(status string) {
+	m.Publish(status, "/devices/sensor/raw/status", true)
 }
 func (m *MqttClient) PublishPowerStatus(status bool) {
 	if status {
