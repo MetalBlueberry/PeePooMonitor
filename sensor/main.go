@@ -8,6 +8,7 @@ import (
 
 	"github.com/metalblueberry/PeePooMonitor/sensor/hcsr51"
 	"github.com/metalblueberry/PeePooMonitor/sensor/mqtt"
+	"periph.io/x/periph/host/bcm283x"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -17,7 +18,7 @@ func init() {
 		FullTimestamp: true,
 	})
 	//log filename and line :D
-	log.SetReportCaller(true)
+	// log.SetReportCaller(true)
 	// Output to stdout instead of the default stderr
 	// Can be any io.Writer, see below for File example
 	log.SetOutput(os.Stdout)
@@ -37,7 +38,7 @@ func main() {
 
 	flag.Parse()
 
-	sensor := hcsr51.NewHCSR51(17)
+	sensor := hcsr51.NewHCSR51(bcm283x.GPIO17)
 	client := &mqtt.MqttClient{
 		Server:      *server,
 		Qos:         *qos,
@@ -47,13 +48,9 @@ func main() {
 		SendTimeout: *sendTimeout,
 		OnConnect: func(client mqtt.Publisher) {
 			log.Info("Reconnected")
-			status, err := sensor.Status()
-			if err != nil {
-				log.WithError(err).Error("Error reading sensor when reconnecting")
-				return
-			}
+			status := sensor.Status()
 			client.PublishPowerStatus(true)
-			client.PublishSensorStatus(status)
+			client.PublishSensorStatus(status.String())
 		},
 	}
 
@@ -67,7 +64,9 @@ func main() {
 		os.Exit(1)
 	}()
 
-	notifier := sensor.DetectMotion()
+	done := make(chan struct{})
+	defer close(done)
+	notifier := sensor.DetectMotion(done)
 
 	client.Connect()
 	client.PublishPowerStatus(true)
@@ -75,7 +74,8 @@ func main() {
 	for {
 		status := <-notifier
 
-		client.PublishSensorStatus(status)
-		log.Info(status)
+		client.PublishSensorStatus(status.String())
+		log.WithField("status", status).Info("Published status")
 	}
+
 }
