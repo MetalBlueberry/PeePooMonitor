@@ -21,10 +21,12 @@ type HCSR51 struct {
 }
 
 func (h *HCSR51) InitController() {
-	_, err := host.Init()
+	state , err := host.Init()
 	if err != nil {
 		log.WithError(err).Panic("When initializing controller")
 	}
+	
+	log.Debug(state)
 
 	if !rpi.Present() {
 		log.Println("Not runing in Raspberry PI, Attach virtual pin")
