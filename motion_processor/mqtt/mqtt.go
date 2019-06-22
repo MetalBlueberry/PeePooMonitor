@@ -37,6 +37,7 @@ type Addresses string
 const (
 	SensorStatusAddress Addresses = "/devices/sensor/raw/status"
 	PowerStatusAddress  Addresses = "/devices/sensor/connection/status"
+	AddressMotionEvent  Addresses = "/events/motion"
 )
 
 func NewMqttClient(opt *MqttClientOptions) *MqttClient {
@@ -127,6 +128,11 @@ func GenerateMessageHandler(notify chan<- bool) MessageHandler {
 			WithField("payload", string(message.Payload())).
 			WithField("topic", message.Topic()).
 			Debug("New Message")
-		notify<- string(message.Payload()) == "High"
+
+		notify <- string(message.Payload()) == "High"
 	}
+}
+
+func (m *MqttClient) PublishMotionEvent(jsonEvent string) bool {
+	return m.Publish(jsonEvent, 1, string(AddressMotionEvent), false)
 }

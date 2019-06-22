@@ -1,8 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/metalblueberry/PeePooMonitor/motion_processor/mqtt"
@@ -34,17 +36,19 @@ type MotionProcessor struct {
 }
 
 type MotionEvent struct {
-	Start, End time.Time
-	Duration   time.Duration
+	Start    time.Time     `json:"start"`
+	End      time.Time     `json:"end"`
+	Duration time.Duration `json:"duration"`
 }
 
 func main() {
 	hostname, _ := os.Hostname()
 	server := flag.String("server", "tcp://192.168.1.129:1883", "The full URL of the MQTT server to connect to")
-	clientid := flag.String("clientid", hostname, "A clientid for the connection")
+	clientid := flag.String("clientid", hostname+strconv.Itoa(time.Now().Second()), "A clientid for the connection")
 	username := flag.String("username", "guest", "A username to authenticate to the MQTT server")
 	password := flag.String("password", "guest", "Password to match username")
 	sendTimeout := flag.Uint("sendTimeout", 1, "Seconds to wait before failing to send a message")
+	sensorDetectionTimeout := flag.Uint("sensorDetectionTimeout", 55, "Time that the sensor remains active after detecting movement")
 
 	flag.Parse()
 
@@ -59,10 +63,13 @@ func main() {
 		},
 	}
 	client := mqtt.NewMqttClient(clientOptions)
-	client.Connect()
+	err := client.Connect()
+	if err != nil {
+		log.WithError(err).Panic("Unable to connect to mqtt server")
+	}
 
 	processor := MotionProcessor{
-		SensorDetectionTimeout: time.Second * 55,
+		SensorDetectionTimeout: time.Second * time.Duration(*sensorDetectionTimeout),
 	}
 
 	done := make(chan struct{})
@@ -81,9 +88,16 @@ func main() {
 			}
 			processor.LastEvent.End = time.Now().Add(-processor.SensorDetectionTimeout)
 			processor.LastEvent.Duration = processor.LastEvent.End.Sub(processor.LastEvent.Start)
+
 			log.
 				WithField("LastEventDuration", processor.LastEvent.Duration.String()).
 				Info("Event registered")
+
+			jsonEvent, _ := json.Marshal(processor.LastEvent)
+
+			log.WithField("json", string(jsonEvent)).Debug("Json event generated")
+
+			client.PublishMotionEvent(string(jsonEvent))
 		}
 	}
 
