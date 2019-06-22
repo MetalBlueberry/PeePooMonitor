@@ -8,4 +8,5 @@ require (
 	github.com/onsi/ginkgo v1.8.0
 	github.com/onsi/gomega v1.5.0
 	github.com/sirupsen/logrus v1.4.2
+	periph.io/x/periph v3.4.0+incompatible
 )
