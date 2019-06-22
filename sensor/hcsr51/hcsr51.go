@@ -4,104 +4,92 @@ package hcsr51
 //go:generate mockgen -destination=../mocks/mock_$GOFILE -package=mocks  --source=$GOFILE
 
 import (
-	"fmt"
-	"os/exec"
-	"runtime/debug"
-	"strconv"
-	"strings"
 	"time"
+
+	"periph.io/x/periph/conn/gpio"
+	"periph.io/x/periph/host"
+
+	// layout https://webofthings.org/wp-content/uploads/2016/10/pi-gpio.png
+	"periph.io/x/periph/host/rpi"
 
 	log "github.com/sirupsen/logrus"
 )
 
 type HCSR51 struct {
-	PinNumber     int
+	Pin           gpio.PinIO
 	NotifyTimeout time.Duration
-	commander     Commander
 }
 
-func NewHCSR51(PinNumber int) *HCSR51 {
-	return &HCSR51{
-		PinNumber:     PinNumber,
-		NotifyTimeout: time.Second * 1,
-		commander:     Command{},
+func (h *HCSR51) InitController() {
+	state , err := host.Init()
+	if err != nil {
+		log.WithError(err).Panic("When initializing controller")
 	}
+	
+	log.Debug(state)
+
+	if !rpi.Present() {
+		log.Println("Not runing in Raspberry PI, Attach virtual pin")
+		vpin := &VirtualPin{
+			EdgeDuration: time.Second * 1,
+			EdgePeriod:   time.Second * 2,
+		}
+		go vpin.Simulate(time.After(time.Second * 30))
+		h.Pin = vpin
+	}
+
+	h.Pin.In(gpio.Float, gpio.BothEdges)
 }
-func NewHCSR51Timeout(PinNumber int, NotifyTimeout time.Duration) *HCSR51 {
-	return &HCSR51{
-		PinNumber:     PinNumber,
+
+func NewHCSR51(pin gpio.PinIO) *HCSR51 {
+	return NewHCSR51Timeout(pin, time.Second*1)
+}
+
+func NewHCSR51Timeout(pin gpio.PinIO, NotifyTimeout time.Duration) *HCSR51 {
+	sensor := &HCSR51{
+		Pin:           pin,
 		NotifyTimeout: NotifyTimeout,
-		commander:     Command{},
 	}
+	sensor.InitController()
+	return sensor
 }
 
-func (w *HCSR51) SetCommander(commander Commander) {
-	w.commander = commander
-}
+func (w *HCSR51) DetectMotion(done <-chan struct{}) <-chan gpio.Level {
+	log.Info("Using periph library")
+	notify := make(chan gpio.Level)
 
-type Commander interface {
-	Command(command string, args ...string) ([]byte, error)
-}
-type Command struct{}
-
-func (c Command) Command(command string, args ...string) ([]byte, error) {
-	return exec.Command(command, args...).Output()
-}
-
-func (w *HCSR51) DetectMotion() <-chan int {
-	log.Info("Using wiringpi library")
-	notify := make(chan int)
-
-	go func(w *HCSR51, notify chan<- int) {
+	go func(w *HCSR51, notify chan<- gpio.Level) {
 		for {
-			status, err := w.WatchInputChanges()
-			if err != nil {
-				log.WithError(err).Fatal("Unable to interact with GPIO")
+			log.Debug("Waiting for edge")
+			edgeDetected := w.Pin.WaitForEdge(time.Second * 10)
+			if edgeDetected {
+				log.Debug("detected edge")
+				status := w.Pin.Read()
+				log.WithField("state", status).Debug("State readed")
+
+				select {
+				case notify <- status:
+				case <-time.After(w.NotifyTimeout):
+					log.Error("There is no listener for motion detection notifications")
+					close(notify)
+					return
+				}
 			}
 			select {
-			case notify <- status:
-			case <-time.After(w.NotifyTimeout):
-				log.Error("There is no listener for motion detection notifications")
+			case <-done:
+				log.Info("Stop DetectMotion as done is requested")
 				close(notify)
 				return
+			default:
+				continue
 			}
+
 		}
 	}(w, notify)
 
 	return notify
 }
 
-func (w *HCSR51) WatchInputChanges() (int, error) {
-	defer func() {
-		if r := recover(); r!=nil{
-		log.WithField("recover", r).Error("Panic recoverin Detect Motion, Should only happen during test conditions")
-		debug.PrintStack()
-		}
-	}()
-
-	log.Debug("Waiting for edge")
-	command := "gpio"
-	args := fmt.Sprintf("-g wfi %d both", w.PinNumber)
-	_, err := w.commander.Command(command, strings.Split(args, " ")...)
-	if err != nil {
-		return -1, err
-	}
-	log.Debug("detected edge")
-
-	return w.Status()
-}
-
-func (w *HCSR51) Status() (int, error) {
-	command := "gpio"
-	args := fmt.Sprintf("-g read %d", w.PinNumber)
-	out, err := w.commander.Command(command, strings.Split(args, " ")...)
-	if err != nil {
-		return -1, err
-	}
-	log.WithField("state", out).Debug("State readed")
-	value, err := strconv.Atoi(strings.Trim(string(out), " \n"))
-	if err != nil {
-		return -1, err
-	}
-	return value, nil
+func (h HCSR51) Status() gpio.Level {
+	return h.Pin.Read()
 }

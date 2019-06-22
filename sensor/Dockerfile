@@ -15,6 +15,6 @@ RUN go install -v ./...
 FROM alpine:3.9 as sensor
 COPY --from=builder /go/bin/sensor /usr/bin/sensor
 RUN apk update && apk upgrade && \
-    apk add --no-cache ca-certificates wiringpi
+    apk add --no-cache ca-certificates 
 
 CMD ["sensor"]
