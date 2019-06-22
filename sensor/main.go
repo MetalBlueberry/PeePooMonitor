@@ -39,7 +39,7 @@ func main() {
 	flag.Parse()
 
 	sensor := hcsr51.NewHCSR51(bcm283x.GPIO17)
-	client := &mqtt.MqttClient{
+	clientOptions := &mqtt.MqttClientOptions{
 		Server:      *server,
 		Qos:         *qos,
 		Clientid:    *clientid,
@@ -53,6 +53,8 @@ func main() {
 			client.PublishSensorStatus(status.String())
 		},
 	}
+	client := mqtt.NewMqttClient(clientOptions)
+	client.Connect()
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)

@@ -2,7 +2,6 @@ package mqtt
 
 import (
 	"crypto/tls"
-	"fmt"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -10,20 +9,28 @@ import (
 	MQTT "github.com/eclipse/paho.mqtt.golang"
 )
 
-type publisher interface {
+//go:generate mockgen -destination=../mocks/mock_$GOFILE -package=mocks  --source=$GOFILE
+
+type Token interface {
+	Wait() bool
+	WaitTimeout(time.Duration) bool
+	Error() error
+}
+type mqttPublisher interface {
 	Connect() MQTT.Token
 	Publish(topic string, qos byte, retained bool, payload interface{}) MQTT.Token
 	Disconnect(quiesce uint)
 }
+
+// Publisher is an interface to report the status of the sensor.
 type Publisher interface {
 	Disconnect(quiesce uint)
 	PublishSensorStatus(status string)
 	PublishPowerStatus(status bool)
 }
 
-type MqttClient struct {
+type MqttClientOptions struct {
 	Server       string
-	Topic        string
 	Qos          int
 	Clientid     string
 	Username     string
@@ -31,53 +38,77 @@ type MqttClient struct {
 	SendTimeout  uint
 	CleanSession bool
 	OnConnect    func(Publisher)
-	client       publisher
 }
 
-func (m *MqttClient) Connect() {
+type MqttClient struct {
+	Client  mqttPublisher
+	Options *MqttClientOptions
+}
+
+type Addresses string
+
+const (
+	SensorStatusAddress Addresses = "/devices/sensor/raw/status"
+	PowerStatusAddress  Addresses = "/devices/sensor/connection/status"
+)
+
+func NewMqttClient(opt *MqttClientOptions) *MqttClient {
+	var client *MqttClient
 	connOpts := MQTT.
 		NewClientOptions().
-		AddBroker(m.Server).
-		SetClientID(m.Clientid).
-		SetCleanSession(m.CleanSession).
+		AddBroker(opt.Server).
+		SetClientID(opt.Clientid).
+		SetCleanSession(opt.CleanSession).
 		SetAutoReconnect(true).
-		SetOnConnectHandler(func(client MQTT.Client) {
-			m.OnConnect(m)
+		SetOnConnectHandler(func(MQTT.Client) {
+			opt.OnConnect(client)
 		})
 
-	if m.Username != "" {
-		connOpts.SetUsername(m.Username)
-		if m.Password != "" {
-			connOpts.SetPassword(m.Password)
+	if opt.Username != "" {
+		connOpts.SetUsername(opt.Username)
+		if opt.Password != "" {
+			connOpts.SetPassword(opt.Password)
 		}
 	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: true, ClientAuth: tls.NoClientCert}
 	connOpts.SetTLSConfig(tlsConfig)
 
-	m.client = MQTT.NewClient(connOpts)
-	if token := m.client.Connect(); token.Wait() && token.Error() != nil {
-		fmt.Println(token.Error())
-		panic(token.Error())
-		return
+	realClient := MQTT.NewClient(connOpts)
+	client = &MqttClient{
+		Options: opt,
+		Client:  realClient,
 	}
-	log.WithField("Server", m.Server).Info("Connected to Server")
+	return client
+}
+
+func (m *MqttClient) Connect() error {
+	if token := m.Client.Connect(); token.Wait() && token.Error() != nil {
+		return token.Error()
+	}
+	log.WithField("Server", m.Options.Server).Info("Connected to Server")
+	return nil
 }
 
 func (m *MqttClient) Publish(message string, topic string, retained bool) bool {
-	return m.client.Publish(topic, byte(m.Qos), retained, message).WaitTimeout(time.Second * time.Duration(m.SendTimeout))
+	log.
+		WithField("topic", topic).
+		WithField("message", message).
+		Debug("Publishing message")
+
+	return m.Client.Publish(topic, byte(m.Options.Qos), retained, message).WaitTimeout(time.Second * time.Duration(m.Options.SendTimeout))
 }
 
 func (m *MqttClient) Disconnect(quiesce uint) {
-	m.client.Disconnect(100)
+	m.Client.Disconnect(100)
 }
 
 func (m *MqttClient) PublishSensorStatus(status string) {
-	m.Publish(status, "/devices/sensor/raw/status", true)
+	m.Publish(status, string(SensorStatusAddress), true)
 }
 func (m *MqttClient) PublishPowerStatus(status bool) {
 	if status {
-		m.Publish("PowerOn", "/devices/sensor/connection/status", true)
+		m.Publish("PowerOn", string(PowerStatusAddress), true)
 	} else {
-		m.Publish("PowerOff", "/devices/sensor/connection/status", true)
+		m.Publish("PowerOff", string(PowerStatusAddress), true)
 	}
 }

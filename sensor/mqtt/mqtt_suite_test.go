@@ -1,4 +1,4 @@
-package hcsr51_test
+package mqtt_test
 
 import (
 	"testing"
@@ -7,7 +7,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestHcsr51(t *testing.T) {
+func TestMqtt(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Hcsr51 Suite")
+	RunSpecs(t, "Mqtt Suite")
 }
