@@ -43,7 +43,7 @@ type MotionEvent struct {
 
 func main() {
 	hostname, _ := os.Hostname()
-	server := flag.String("server", "tcp://192.168.1.129:1883", "The full URL of the MQTT server to connect to")
+	server := flag.String("server", "tcp://mosquitto:1883", "The full URL of the MQTT server to connect to")
 	clientid := flag.String("clientid", hostname+strconv.Itoa(time.Now().Second()), "A clientid for the connection")
 	username := flag.String("username", "guest", "A username to authenticate to the MQTT server")
 	password := flag.String("password", "guest", "Password to match username")
