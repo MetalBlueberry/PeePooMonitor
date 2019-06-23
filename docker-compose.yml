@@ -5,11 +5,15 @@ services:
     build:
       context: sensor
       target: sensor
-    secrets:
-      - telegram_bot_token
     depends_on:
       - mosquitto
 
+  motion_processor:
+    build:
+      context: motion_processor
+      target: motion_processor
+    depends_on:
+      - mosquitto
   mosquitto:
     build: mosquitto
     volumes:
