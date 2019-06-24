@@ -54,7 +54,10 @@ func main() {
 		},
 	}
 	client := mqtt.NewMqttClient(clientOptions)
-	client.Connect()
+	err := client.Connect()
+	if err != nil {
+		log.WithError(err).Panic("Unable to connect to mqtt server")
+	}
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
