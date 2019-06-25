@@ -14,6 +14,16 @@ services:
       target: motion_processor
     depends_on:
       - mosquitto
+
+  telegram_bot_controller:
+    build:
+      context: telegram_bot_controller
+      target: telegram_bot_controller
+    secrets:
+      - telegram_bot_token
+    depends_on:
+      - mosquitto
+
   mosquitto:
     build: mosquitto
     volumes:
