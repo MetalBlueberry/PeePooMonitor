@@ -1,7 +1,3 @@
-FROM golang:1.12 as dev
-WORKDIR /app
-ENV SHELL /bin/bash
-
 FROM golang:1.12-alpine3.9 as builder
 
 RUN apk update && apk upgrade && \

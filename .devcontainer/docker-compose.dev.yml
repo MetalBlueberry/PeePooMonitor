@@ -1,19 +1,18 @@
 version: "3.5"
 
 services:
-  sensor:
+  development:
+    build: .
     command: sleep infinity    
     user: "1000"
     environment:
       # allow proper integration of .bashrc
      - "HOME=$HOME"
-    build:
-      target: dev
     volumes:
       # Mount dev home
       - $HOME/devhome:$HOME
       # Mount Project
-      - ./:$HOME/PeePooMonitor
+      - ./../:$HOME/PeePooMonitor
       # Some global configuration files
       # share id to allow git integration
       - $HOME/.ssh:$HOME/.ssh:ro
@@ -30,6 +29,16 @@ services:
       - SYS_PTRACE
     security_opt:
       - seccomp:unconfined
+    depends_on:
+      - mosquitto
 
+  mosquitto:
+    build: ./../mosquitto
+    volumes:
+      - mosquitto-dev-data:/mosquitto/data
+      - ./../mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    ports:
+      - "1883:1883"
 volumes:
   gobin:  
+  mosquitto-dev-data:
