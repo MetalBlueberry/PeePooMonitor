@@ -66,19 +66,31 @@ func NewMqttClient(sensor *hcsr51.HCSR51) MQTT.Client {
 }
 
 func PublishSensorStatus(client MQTT.Client, status string) error {
-	if token := client.Publish(string(AddressSensorStatus), 1, false, status); token.WaitTimeout(time.Second*time.Duration(sendTimeout)) || token.Error() != nil {
-		return errors.Wrap(token.Error(), "Error Publishing Sensor Status")
+	token := client.Publish(string(AddressSensorStatus), 1, false, status)
+	if !token.WaitTimeout(time.Second * time.Duration(sendTimeout)) {
+		return errors.New("Timeout publishing message")
+	}
+	if err := token.Error(); err != nil {
+		return errors.Wrap(err, "Error Publishing Sensor Status")
 	}
 	return nil
 }
 func PublishPowerStatus(client MQTT.Client, status bool) error {
 	if status {
-		if token := client.Publish(string(AddressPowerStatus), 1, true, "PowerOn"); token.WaitTimeout(time.Second*time.Duration(sendTimeout)) || token.Error() != nil {
-			return errors.Wrap(token.Error(), "Error Publishing Sensor Power Status")
+		token := client.Publish(string(AddressPowerStatus), 1, true, "PowerOn")
+		if !token.WaitTimeout(time.Second * time.Duration(sendTimeout)) {
+			return errors.New("Timeout publishing message")
+		}
+		if err := token.Error(); err != nil {
+			return errors.Wrap(err, "Error Publishing Sensor Power Status")
 		}
 	} else {
-		if token := client.Publish(string(AddressPowerStatus), 1, true, "PowerOff"); token.WaitTimeout(time.Second*time.Duration(sendTimeout)) || token.Error() != nil {
-			return errors.Wrap(token.Error(), "Error Publishing Sensor Power Status")
+		token := client.Publish(string(AddressPowerStatus), 1, true, "PowerOff")
+		if !token.WaitTimeout(time.Second * time.Duration(sendTimeout)) {
+			return errors.New("Timeout publishing message")
+		}
+		if err := token.Error(); err != nil {
+			return errors.Wrap(err, "Error Publishing Sensor Power Status")
 		}
 	}
 	return nil
