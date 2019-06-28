@@ -4,10 +4,7 @@ import (
 	"fmt"
 	"flag"
 	"io/ioutil"
-	"os"
-	"strconv"
 	"strings"
-	"time"
 
 	"github.com/metalblueberry/PeePooMonitor/telegram_bot_controller/mqtt"
 	"github.com/metalblueberry/PeePooMonitor/telegram_bot_controller/tgbot"
@@ -17,7 +14,6 @@ import (
 func main() {
 	log.Info("hello")
 
-	hostname, _ := os.Hostname()
 	server := flag.String("server", "tcp://mosquitto:1883", "The full URL of the MQTT server to connect to")
 	clientid := flag.String("clientid", "telegram_bot_controller", "A clientid for the connection")
 	username := flag.String("username", "guest", "A username to authenticate to the MQTT server")
