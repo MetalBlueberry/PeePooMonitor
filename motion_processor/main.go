@@ -4,10 +4,8 @@ import (
 	"encoding/json"
 	"flag"
 	"os"
-	"strconv"
 	"time"
 
-	"github.com/metalblueberry/PeePooMonitor/motion_processor/mqtt"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -35,6 +33,32 @@ type MotionProcessor struct {
 	LastEvent              *MotionEvent
 }
 
+func (m *MotionProcessor) ProcessStatusSequence(status bool) *MotionEvent {
+
+	if status {
+		m.LastEvent = &MotionEvent{
+			Start: time.Now(),
+		}
+		return nil
+	}
+
+	if m.LastEvent == nil {
+		return nil
+	}
+
+	event := m.LastEvent
+	m.LastEvent = nil
+
+	event.End = time.Now().Add(-m.SensorDetectionTimeout)
+	event.Duration = event.End.Sub(event.Start)
+
+	log.
+		WithField("LastEventDuration", event.Duration.String()).
+		Info("Event registered")
+
+	return event
+}
+
 type MotionEvent struct {
 	Start    time.Time     `json:"start"`
 	End      time.Time     `json:"end"`
@@ -42,63 +66,33 @@ type MotionEvent struct {
 }
 
 func main() {
-	hostname, _ := os.Hostname()
-	server := flag.String("server", "tcp://mosquitto:1883", "The full URL of the MQTT server to connect to")
-	clientid := flag.String("clientid", hostname+strconv.Itoa(time.Now().Second()), "A clientid for the connection")
-	username := flag.String("username", "guest", "A username to authenticate to the MQTT server")
-	password := flag.String("password", "guest", "Password to match username")
-	sendTimeout := flag.Uint("sendTimeout", 1, "Seconds to wait before failing to send a message")
-	sensorDetectionTimeout := flag.Uint("sensorDetectionTimeout", 55, "Time that the sensor remains active after detecting movement")
+	flag.UintVar(&sensorDetectionTimeout, "sensorDetectionTimeout", 55, "Time that the sensor remains active after detecting movement")
 
 	flag.Parse()
 
-	clientOptions := &mqtt.MqttClientOptions{
-		Server:      *server,
-		Clientid:    *clientid,
-		Username:    *username,
-		Password:    *password,
-		SendTimeout: *sendTimeout,
-		OnConnect: func(client *mqtt.MqttClient) {
-			log.Info("Reconnected")
-		},
-	}
-	client := mqtt.NewMqttClient(clientOptions)
-	err := client.Connect()
-	if err != nil {
-		log.WithError(err).Panic("Unable to connect to mqtt server")
+	client := NewMqttClient()
+	if token := client.Connect(); !token.WaitTimeout(time.Second*time.Duration(sendTimeout)) || token.Error() != nil {
+		log.WithError(token.Error()).Panic("Unable to connect to mqtt server")
 	}
 
+	opts := client.OptionsReader()
+	log.WithField("servers", opts.Servers()).Info("Connected to MQTT")
+
 	processor := MotionProcessor{
-		SensorDetectionTimeout: time.Second * time.Duration(*sensorDetectionTimeout),
+		SensorDetectionTimeout: time.Second * time.Duration(sensorDetectionTimeout),
 	}
 
 	done := make(chan struct{})
-	notification := client.DetectMotion(done)
+	notification := DetectMotion(client, done)
+	log.Info("Waiting for notifications")
 	for {
 		status := <-notification
 		log.WithField("status", status).Info("New notificaton")
-		switch {
-		case status:
-			processor.LastEvent = &MotionEvent{
-				Start: time.Now(),
-			}
-		case !status:
-			if processor.LastEvent == nil {
-				continue
-			}
-			processor.LastEvent.End = time.Now().Add(-processor.SensorDetectionTimeout)
-			processor.LastEvent.Duration = processor.LastEvent.End.Sub(processor.LastEvent.Start)
-
-			log.
-				WithField("LastEventDuration", processor.LastEvent.Duration.String()).
-				Info("Event registered")
-
-			jsonEvent, _ := json.Marshal(processor.LastEvent)
-
+		event := processor.ProcessStatusSequence(status)
+		if event != nil {
+			jsonEvent, _ := json.Marshal(event)
 			log.WithField("json", string(jsonEvent)).Debug("Json event generated")
-
-			client.PublishMotionEvent(string(jsonEvent))
+			PublishMotionEvent(client, string(jsonEvent))
 		}
 	}
-
 }
