@@ -38,7 +38,7 @@ func (h *HCSR51) InitController() {
 		h.Pin = vpin
 	}
 
-	h.Pin.In(gpio.Float, gpio.BothEdges)
+	h.Pin.In(gpio.PullUp, gpio.BothEdges)
 }
 
 func NewHCSR51(pin gpio.PinIO) *HCSR51 {
