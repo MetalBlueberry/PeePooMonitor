@@ -7,9 +7,8 @@ import (
 	"syscall"
 
 	"github.com/metalblueberry/PeePooMonitor/sensor/hcsr51"
-	"github.com/metalblueberry/PeePooMonitor/sensor/mqtt"
-	"periph.io/x/periph/host/bcm283x"
 	log "github.com/sirupsen/logrus"
+	"periph.io/x/periph/host/bcm283x"
 )
 
 func init() {
@@ -18,69 +17,61 @@ func init() {
 		FullTimestamp: true,
 	})
 	//log filename and line :D
-	// log.SetReportCaller(true)
+	log.SetReportCaller(true)
 	// Output to stdout instead of the default stderr
 	// Can be any io.Writer, see below for File example
 	log.SetOutput(os.Stdout)
 	// Only log the warning severity or above.
-	log.SetLevel(log.DebugLevel)
+	log.SetLevel(log.TraceLevel)
 }
 
-func main() {
+var sensor *hcsr51.HCSR51
 
-	hostname, _ := os.Hostname()
-	server := flag.String("server", "tcp://mosquitto:1883", "The full URL of the MQTT server to connect to")
-	qos := flag.Int("qos", 1, "The QoS to send the messages at")
-	clientid := flag.String("clientid", hostname, "A clientid for the connection")
-	username := flag.String("username", "guest", "A username to authenticate to the MQTT server")
-	password := flag.String("password", "guest", "Password to match username")
-	sendTimeout := flag.Uint("sendTimeout", 1, "Seconds to wait before failing to send a message")
+func main() {
 
 	flag.Parse()
 
 	sensor := hcsr51.NewHCSR51(bcm283x.GPIO17)
-	clientOptions := &mqtt.MqttClientOptions{
-		Server:      *server,
-		Qos:         *qos,
-		Clientid:    *clientid,
-		Username:    *username,
-		Password:    *password,
-		SendTimeout: *sendTimeout,
-		OnConnect: func(client mqtt.Publisher) {
-			log.Info("Reconnected")
-			status := sensor.Status()
-			client.PublishPowerStatus(true)
-			client.PublishSensorStatus(status.String())
-		},
+	client := NewMqttClient(sensor)
+
+	if token := client.Connect(); token.Wait() && token.Error() != nil {
+		log.WithError(token.Error()).Panic("Unable to connect to mqtt server")
 	}
-	client := mqtt.NewMqttClient(clientOptions)
-	err := client.Connect()
-	if err != nil {
-		log.WithError(err).Panic("Unable to connect to mqtt server")
-	}
+	opts := client.OptionsReader()
+	log.WithField("servers", opts.Servers()).Info("Connected to MQTT")
+
+	done := make(chan struct{})
+	defer close(done)
+	notifier := sensor.DetectMotion(done)
+	PublishPowerStatus(client, true)
 
 	c := make(chan os.Signal)
 	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-c
-		log.Debug("Disconnect")
-		client.PublishPowerStatus(false)
-		client.Disconnect(100)
-		os.Exit(1)
+		signal.Reset(os.Interrupt, syscall.SIGTERM)
+		log.Info("Trying to shutdown the system, press ctrl+c again to force stop")
+		done <- struct{}{}
 	}()
 
-	done := make(chan struct{})
-	defer close(done)
-	notifier := sensor.DetectMotion(done)
-
-	client.Connect()
-	client.PublishPowerStatus(true)
-
 	for {
-		status := <-notifier
+		status, ok := <-notifier
+		if !ok {
+			log.Info("notification channel is closed")
+			break
+		}
 
-		client.PublishSensorStatus(status.String())
+		if err := PublishSensorStatus(client, status.String()); err != nil {
+			log.WithError(err).Error("Unable to publish")
+		}
 		log.WithField("status", status).Info("Published status")
 	}
 
+	log.Trace("Notify PowerStatus")
+	if err := PublishPowerStatus(client, false); err != nil {
+		log.WithError(err).Error("Unable to publish")
+	}
+	log.Trace("Disconnect from mosquitto")
+	client.Disconnect(100)
+	log.Trace("Disconnect process finished")
 }

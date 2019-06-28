@@ -1,43 +1,28 @@
-package mqtt_test
+package main_test
 
 import (
 	"github.com/golang/mock/gomock"
 	. "github.com/onsi/ginkgo"
 
+	. "github.com/metalblueberry/PeePooMonitor/sensor"
 	//. "github.com/onsi/gomega"
-
-	"github.com/metalblueberry/PeePooMonitor/sensor/mocks"
-	. "github.com/metalblueberry/PeePooMonitor/sensor/mqtt"
 )
+
+//go:generate mockgen -destination=./mqtt_mock_test.go -package=main_test  github.com/eclipse/paho.mqtt.golang Client,Token
 
 var _ = Describe("Mqtt", func() {
 	var (
 		mockCtrl *gomock.Controller //gomock struct
 		// generated using mockgen command
-		mockMqttPublisher *mocks.MockmqttPublisher
+		mockClient *MockClient
 		// sensor        *HCSR51
-		token  *mocks.MockToken
-		client *MqttClient
+		token *MockToken
 	)
 	BeforeEach(func() {
 		mockCtrl = gomock.NewController(GinkgoT())
-		mockMqttPublisher = mocks.NewMockmqttPublisher(mockCtrl)
+		mockClient = NewMockClient(mockCtrl)
 
-		token = mocks.NewMockToken(mockCtrl)
-		opts := &MqttClientOptions{
-			Server:      "server",
-			Qos:         1,
-			Clientid:    "testClient",
-			Username:    "Username",
-			Password:    "Password",
-			SendTimeout: 1,
-			OnConnect: func(client Publisher) {
-			},
-		}
-		client = &MqttClient{
-			Options: opts,
-			Client:  mockMqttPublisher,
-		}
+		token = NewMockToken(mockCtrl)
 	})
 	AfterEach(func() {
 		mockCtrl.Finish()
@@ -46,27 +31,29 @@ var _ = Describe("Mqtt", func() {
 		Describe("Is false", func() {
 			It("Should forwared PowerOff", func() {
 				token.EXPECT().WaitTimeout(gomock.Any()).Return(true).Times(1)
-				mockMqttPublisher.EXPECT().Publish(
-					gomock.Eq(string(PowerStatusAddress)),
+				token.EXPECT().Error().Return(nil).Times(1)
+				mockClient.EXPECT().Publish(
+					gomock.Eq(string(AddressPowerStatus)),
 					gomock.Any(),
 					true,
 					"PowerOff",
 				).Return(token).Times(1)
 
-				client.PublishPowerStatus(false)
+				PublishPowerStatus(mockClient, false)
 			})
 		})
 		Describe("Is true", func() {
 			It("Should forwared PowerOn", func() {
 				token.EXPECT().WaitTimeout(gomock.Any()).Return(true).Times(1)
-				mockMqttPublisher.EXPECT().Publish(
-					gomock.Eq(string(PowerStatusAddress)),
+				token.EXPECT().Error().Return(nil).Times(1)
+				mockClient.EXPECT().Publish(
+					gomock.Eq(string(AddressPowerStatus)),
 					gomock.Any(),
 					true,
 					"PowerOn",
 				).Return(token).Times(1)
 
-				client.PublishPowerStatus(true)
+				PublishPowerStatus(mockClient, true)
 			})
 		})
 	})
@@ -74,14 +61,15 @@ var _ = Describe("Mqtt", func() {
 		It("Should forwared the same message", func() {
 			status := "TestStatus"
 			token.EXPECT().WaitTimeout(gomock.Any()).Return(true).Times(1)
-			mockMqttPublisher.EXPECT().Publish(
-				gomock.Eq(string(SensorStatusAddress)),
+			token.EXPECT().Error().Return(nil).Times(1)
+			mockClient.EXPECT().Publish(
+				gomock.Eq(string(AddressSensorStatus)),
 				gomock.Any(),
-				true,
+				false,
 				status,
 			).Return(token).Times(1)
 
-			client.PublishSensorStatus(status)
+			PublishSensorStatus(mockClient, status)
 		})
 	})
 })

@@ -21,11 +21,11 @@ type HCSR51 struct {
 }
 
 func (h *HCSR51) InitController() {
-	state , err := host.Init()
+	state, err := host.Init()
 	if err != nil {
 		log.WithError(err).Panic("When initializing controller")
 	}
-	
+
 	log.Debug(state)
 
 	if !rpi.Present() {
@@ -58,11 +58,13 @@ func (w *HCSR51) DetectMotion(done <-chan struct{}) <-chan gpio.Level {
 	log.Info("Using periph library")
 	notify := make(chan gpio.Level)
 
-	go func(w *HCSR51, notify chan<- gpio.Level) {
+	go func(w *HCSR51, notify chan<- gpio.Level, done <-chan struct{}) {
+		edgeDetected := make(chan struct{})
+		go w.WaitForEdgeChannel(edgeDetected)
 		for {
 			log.Debug("Waiting for edge")
-			edgeDetected := w.Pin.WaitForEdge(time.Second * 10)
-			if edgeDetected {
+			select {
+			case <-edgeDetected:
 				log.Debug("detected edge")
 				status := w.Pin.Read()
 				log.WithField("state", status).Debug("State readed")
@@ -74,22 +76,27 @@ func (w *HCSR51) DetectMotion(done <-chan struct{}) <-chan gpio.Level {
 					close(notify)
 					return
 				}
-			}
-			select {
 			case <-done:
 				log.Info("Stop DetectMotion as done is requested")
 				close(notify)
 				return
-			default:
-				continue
 			}
 
 		}
-	}(w, notify)
+	}(w, notify, done)
 
 	return notify
 }
 
-func (h HCSR51) Status() gpio.Level {
+func (h *HCSR51) WaitForEdgeChannel(edgeDetected chan<- struct{}) {
+	for {
+		edge := h.Pin.WaitForEdge(time.Second * 10)
+		if edge {
+			edgeDetected <- struct{}{}
+		}
+	}
+}
+
+func (h *HCSR51) Status() gpio.Level {
 	return h.Pin.Read()
 }
