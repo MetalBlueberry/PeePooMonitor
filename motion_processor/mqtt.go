@@ -90,7 +90,7 @@ func GenerateMessageHandler(notify chan<- bool) MQTT.MessageHandler {
 }
 
 func PublishMotionEvent(client MQTT.Client, jsonEvent string) error {
-	token := client.Publish(string(AddressMotionEvent), 1, true, "PowerOn")
+	token := client.Publish(string(AddressMotionEvent), 1, true, jsonEvent)
 	if !token.WaitTimeout(time.Second * time.Duration(sendTimeout)) {
 		return errors.New("Timeout publishing message")
 	}
