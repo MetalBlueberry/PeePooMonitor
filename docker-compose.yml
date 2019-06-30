@@ -6,6 +6,7 @@ services:
       context: sensor
       target: sensor
     depends_on:
+      - compile
       - mosquitto
 
   motion_processor:
@@ -13,6 +14,7 @@ services:
       context: motion_processor
       target: motion_processor
     depends_on:
+      - compile
       - mosquitto
 
   telegram_bot_controller:
@@ -22,7 +24,17 @@ services:
     secrets:
       - telegram_bot_token
     depends_on:
+      - compile
       - mosquitto
+
+  compile:
+    build:
+      context: .
+      dockerfile: compile/Dockerfile
+      target: builder
+    volumes:
+      - ./bin:/go/bin
+    command: ""
 
   mosquitto:
     build: mosquitto

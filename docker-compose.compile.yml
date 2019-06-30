@@ -1,9 +1,10 @@
 version: "3.5"
 
 services:
-   compile:
+   compile-arm:
     build:
-      context: sensor
+      context: .
+      dockerfile: compile/Dockerfile
       target: builder
     volumes:
       - ./bin:/go/bin
@@ -11,5 +12,4 @@ services:
       - GOOS=linux
       - GOARCH=arm 
       - GOARM=5
-    command: "go install ./..."
-    
+  
