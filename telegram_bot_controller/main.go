@@ -1,8 +1,8 @@
 package main
 
 import (
-	"fmt"
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"strings"
 
@@ -51,7 +51,7 @@ func main() {
 	events := client.SubscribeToMotionEvents(done)
 
 	for {
-		event := <- events
-		notifier <- fmt.Sprintf("Cat has been doing its things at %s for %f seconds", event.Start, event.Duration.Seconds())
+		event := <-events
+		notifier <- fmt.Sprintf("Cat has been doing its things\nStart: %s\nEnd: %s\n%f seconds", event.Start.Format("2006-01-02 15:04:05"), event.End.Format("2006-01-02 15:04:05"), event.Duration.Seconds())
 	}
 }
