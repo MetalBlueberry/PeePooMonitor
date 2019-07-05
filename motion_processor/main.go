@@ -66,7 +66,7 @@ type MotionEvent struct {
 }
 
 func main() {
-	flag.UintVar(&sensorDetectionTimeout, "sensorDetectionTimeout", 55, "Time that the sensor remains active after detecting movement")
+	flag.UintVar(&sensorDetectionTimeout, "sensorDetectionTimeout", 0, "Time that the sensor remains active after detecting movement")
 
 	flag.Parse()
 
